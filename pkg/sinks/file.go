@@ -3,8 +3,9 @@ package sinks
 import (
 	"context"
 	"encoding/json"
-	"github.com/opsgenie/kubernetes-event-exporter/pkg/kube"
 	"os"
+
+	"github.com/opsgenie/kubernetes-event-exporter/pkg/kube"
 )
 
 type FileConfig struct {

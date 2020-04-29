@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/opsgenie/kubernetes-event-exporter/pkg/exporter"
-	"github.com/opsgenie/kubernetes-event-exporter/pkg/kube"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/opsgenie/kubernetes-event-exporter/pkg/exporter"
+	"github.com/opsgenie/kubernetes-event-exporter/pkg/kube"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -58,6 +59,7 @@ func main() {
 	engine := exporter.NewEngine(&cfg, &exporter.ChannelBasedReceiverRegistry{})
 	w := kube.NewEventWatcher(kubeconfig, engine.OnEvent)
 
+	leaderLost := make(chan bool)
 	l, err := kube.NewLeaderElector(leaderElectionID, kubeconfig,
 		func(_ context.Context) {
 			log.Info().Msg("leader election got")
@@ -65,7 +67,7 @@ func main() {
 		},
 		func() {
 			log.Error().Msg("leader election lost")
-			w.Stop()
+			leaderLost <- true
 		},
 	)
 	if err != nil {
@@ -77,10 +79,21 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 
-	sig := <-c
-	log.Info().Str("signal", sig.String()).Msg("Received signal to exit")
-	defer close(c)
-	cancel()
-	engine.Stop()
-	log.Info().Msg("Exiting")
+	gracefulExit := func() {
+		defer close(c)
+		defer close(leaderLost)
+		cancel()
+		w.Stop()
+		engine.Stop()
+		log.Info().Msg("Exiting")
+	}
+
+	select {
+	case sig := <-c:
+		log.Info().Str("signal", sig.String()).Msg("Received signal to exit")
+		gracefulExit()
+	case <-leaderLost:
+		log.Warn().Msg("Leader election lost")
+		gracefulExit()
+	}
 }

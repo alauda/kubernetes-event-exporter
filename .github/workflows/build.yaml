@@ -1,9 +1,8 @@
 name: Build and push docker image
-#on:
-#  push:
-#    branches:
-#      - master
-on: [push]
+on:
+  push:
+    branches:
+      - master
 
 jobs:
   build:
@@ -14,10 +13,10 @@ jobs:
       - name: docker login
         uses: azure/docker-login@v1
         with:
-          login-server: index.alauda.cn
+          login-server: harbor-b.alauda.cn
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
       - name: build and push image
         run: |
-          docker build -t index.alauda.cn/claas/kubernetes-event-exporter:v1.0 . && \
-          docker push index.alauda.cn/claas/kubernetes-event-exporter:v1.0
+          docker build -t harbor-b.alauda.cn/ait/kubernetes-event-exporter:v1.0 . && \
+          docker push harbor-b.alauda.cn/ait/kubernetes-event-exporter:v1.0

@@ -20,3 +20,18 @@ jobs:
         run: |
           docker build -t harbor-b.alauda.cn/ait/kubernetes-event-exporter:v1.0 . && \
           docker push harbor-b.alauda.cn/ait/kubernetes-event-exporter:v1.0
+      - name: docker login armharbor
+        uses: azure/docker-login@v1
+        with:
+          login-server: armharbor.alauda.cn
+          username: ${{ secrets.ARM_REGISTRY_USERNAME }}
+          password: ${{ secrets.ARM_REGISTRY_PASSWORD }}
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: crazy-max/ghaction-docker-buildx@v3
+        with:
+          buildx-version: latest
+          qemu-version: latest
+      - name: build and push arm image
+        run: |
+          docker buildx build --platform linux/arm64 -t armharbor.alauda.cn/ait/kubernetes-event-exporter:v1.0 --push .
